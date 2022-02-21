@@ -205,29 +205,29 @@ class ModBus:
         self.tree.tag_configure('low', foreground='black')
 
         for l in range(16):
-            if sensArray[l].L1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
+            if sensArray[l].line_1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('high',))
             else:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('low',))
         for l in range(16, 32):
-            if sensArray[l].L1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
+            if sensArray[l].line_1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('high',))
             else:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('low',))
 
@@ -243,29 +243,29 @@ class ModBus:
             self.tree.delete(i)
 
         for l in range(16):
-            if sensArray[l].L1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
+            if sensArray[l].line_1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('high',))
             else:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('low',))
         for l in range(16, 32):
-            if sensArray[l].L1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
+            if sensArray[l].line_1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('high',))
             else:
                 self.tree.insert(parent='', index='end', iid=l, text='', values=(
                     dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                    sensArray[l].L1,
+                    sensArray[l].line_1,
                     sensArray[l].L2, sensArray[l].L3, float(sensArray[l].EXT), float(sensArray[l].OUT)),
                                  tags=('low',))
 

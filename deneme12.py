@@ -6,8 +6,9 @@ from tkinter import ttk
 from tkinter import *
 import pymongo
 import datetime as dt
-import time
 import numpy
+import csv
+import pandas as pd
 
 root = tk.Tk()
 
@@ -19,72 +20,63 @@ def window_unit():
 
 
 class EaeSens:
-    L1 = 0
-    L2 = 0
-    L3 = 0
-    EXT = 0
-    OUT = 0
-    line_no = 0
-    sens_no = 0
 
-    def __init__(self, L1, L2, L3, EXT, OUT, line_no, sens_no):
-        self.L1 = L1
-        self.L2 = L2
-        self.L3 = L3
-        self.EXT = EXT
-        self.OUT = OUT
+    def __init__(self, line_1, line_2, line_3, ext, out, line_no, sens_no):
+        self.line_1 = line_1
+        self.line_2 = line_2
+        self.line_3 = line_3
+        self.ext = ext
+        self.out = out
         self.line_no = line_no
         self.sens_no = sens_no
 
 
-# obj1 = EaeSens(3, 3, 3)
-
-sensArray = numpy.ndarray((32,), dtype=EaeSens)
+sens_array = numpy.ndarray((32,), dtype=EaeSens)
 
 for i in range(0, 16):
-    sensArray[i] = EaeSens(0.0, 0.0, 0.0, 0, 0, 110, i + 1)
+    sens_array[i] = EaeSens(0.0, 0.0, 0.0, 0, 0, 110, i + 1)
 
 for a in range(16, 32):
-    sensArray[a] = EaeSens(0.0, 0.0, 0.0, 0, 0, 400, a + 1)
-
-print(sensArray[1].line_no)
+    sens_array[a] = EaeSens(0.0, 0.0, 0.0, 0, 0, 400, a + 1)
 
 
 class ModBus:
-    sensor_min_num = 0
-    sensor_max_num = 2
-    lineNo = 0
-    sensorTypeNo = 0
 
-    def __init__(self, sensorTypeNo, lineNo, sensor_min_num, sensor_max_num):
+    def __init__(self, sensor_type_no, line_no, sensor_min_num, sensor_max_num):
 
         self.sensor_min_num = sensor_min_num
         self.sensor_max_num = sensor_max_num
-        self.lineNo = lineNo
-        self.sensorTypeNo = sensorTypeNo
+        self.lineNo = line_no
+        self.sensorTypeNo = sensor_type_no
         self.resultList = []
         self.finalResultList = []
         self.regNoList = []
         self.reg_list = list(range(self.sensor_min_num, self.sensor_max_num + 1))
         self.style = ttk.Style()
         self.style.map("Treeview", foreground=self.fixed_map("foreground"), background=self.fixed_map("background"))
+        self.port_no = None
+        self.data_as_float = None
+        self.regs_count = None
+        self.arr = None
+        self.head_text = None
+        self.tree = None
 
     def fixed_map(self, option):
         return [elm for elm in self.style.map("Treeview", query_opt=option) if elm[:2] != ("!disabled", "!selected")]
 
     def connect_modbus(self):
-        print("---------------------------------------")
-        for i in self.reg_list:
-            groupNo = math.floor(((self.lineNo - 1) / 256)) + 1
-            self.portNo = 10000 + (self.sensorTypeNo - 1) * 10 + groupNo - 1
-            regNo = (((self.lineNo - 1) * 128 + (int(i) - 1)) * 2) % 65536
-            self.regNoList.append(regNo)
-            print("groupNo", groupNo)
-            print("portNo", self.portNo)
-            print("regNo", regNo)
+
+        for inc in self.reg_list:
+            group_no = math.floor(((self.lineNo - 1) / 256)) + 1
+            self.port_no = 10000 + (self.sensorTypeNo - 1) * 10 + group_no - 1
+            reg_no = (((self.lineNo - 1) * 128 + (int(inc) - 1)) * 2) % 65536
+            self.regNoList.append(reg_no)
+            print("group_no", group_no)
+            print("portNo", self.port_no)
+            print("reg_no", reg_no)
 
         for x in self.regNoList:
-            sensor_no = ModbusClient(host="192.40.50.107", port=self.portNo, unit_id=1, auto_open=True)
+            sensor_no = ModbusClient(host="192.40.50.107", port=self.port_no, unit_id=1, auto_open=True)
             sensor_no.open()
             regs = sensor_no.read_holding_registers(x, 2)
             if regs:
@@ -100,7 +92,6 @@ class ModBus:
         print("REG_LIST", self.reg_list)
         self.data_as_float = self.resultList
         print("Result_Temp", self.resultList)
-        print("??????????????????????????????????????????????")
         self.finalResultList = self.resultList
         self.regNoList = []
         self.resultList = []
@@ -117,12 +108,9 @@ class ModBus:
         products = data
         self.arr = []
         for product in products:
-            vals = {}
-            vals["Sensor Type No"] = str(int(self.sensorTypeNo))
-            vals["Line No"] = str(int(self.lineNo))
-            vals["Sensor No"] = str(int(product[1]))
-            vals["Temp"] = str(round(product[2], 4))
-            vals["Time"] = str(dt.datetime.now().strftime('%Y-%m-%d %X'))
+            vals = {"Sensor Type No": str(int(self.sensorTypeNo)), "Line No": str(int(self.lineNo)),
+                    "Sensor No": str(int(product[1])), "Temp": str(round(product[2], 4)),
+                    "Time": str(dt.datetime.now().strftime('%Y-%m-%d %X'))}
             self.arr.append(vals)
         return self.arr
 
@@ -130,7 +118,7 @@ class ModBus:
         lst = self.list_to_dict()
         myclient = pymongo.MongoClient("mongodb://localhost:27017/")
         mydb = myclient["Modbus_Database"]
-        mycol = mydb["collection5"]
+        mycol = mydb["collection6"]
 
         mycol.insert_many(lst)
 
@@ -145,12 +133,14 @@ class ModBus:
                     pass
         return res
 
-    def drag_start(self, event):
+    @staticmethod
+    def drag_start(event):
         widget = event.widget
         widget.startX = event.x
         widget.startY = event.y
 
-    def drag_motion(self, event):
+    @staticmethod
+    def drag_motion(event):
         widget = event.widget
         x = widget.winfo_x() - widget.startX + event.x
         y = widget.winfo_y() - widget.startY + event.y
@@ -198,17 +188,17 @@ class ModBus:
         start_range = 0
         id_count = 1
 
-        for record in self.record_mongo()[-(self.regs_count):]:
+        for record in self.record_mongo()[-self.regs_count:]:
             sensor_id = record[2]
             temperature = record[3]
             date_time = record[4]
 
             if float(temperature) > 30.0:
-                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=start_range,
+                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=str(start_range),
                                  values=(str(self.head_text), str(date_time), int(sensor_id), float(temperature)),
                                  tags=('high',))
             else:
-                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=start_range,
+                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=str(start_range),
                                  values=(str(self.head_text), str(date_time), int(sensor_id), float(temperature)),
                                  tags=('low',))
 
@@ -223,24 +213,24 @@ class ModBus:
 
     def update_window_table(self):
 
-        for i in self.tree.get_children():
-            self.tree.delete(i)
+        for ite in self.tree.get_children():
+            self.tree.delete(ite)
 
         start_range = 0
         id_count = 1
 
-        for record in self.record_mongo()[-(self.regs_count):]:
+        for record in self.record_mongo()[-self.regs_count:]:
             sensor_id = record[2]
             temperature = record[3]
             date_time = record[4]
 
             if float(temperature) > 30.0:
-                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=start_range,
+                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=str(start_range),
                                  values=(str(self.head_text), str(date_time), int(sensor_id), float(temperature)),
                                  tags=('high',))
 
             else:
-                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=start_range,
+                self.tree.insert("", index='end', text="%s" % int(sensor_id), iid=str(start_range),
                                  values=(str(self.head_text), str(date_time), int(sensor_id), float(temperature)),
                                  tags=('low',))
 
@@ -265,34 +255,15 @@ def main():
     app5 = ModBus(8, 110, 1, 16)
     app5.connect_modbus()
 
-    print("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
-    print(app1.finalResultList)
-
     for count in range(32):
-        if sensArray[count].line_no == 400:
-            sensArray[count].line_1 = app1.finalResultList[count - 16]
-            sensArray[count].L2 = app2.finalResultList[count - 16]
-            sensArray[count].L3 = app3.finalResultList[count - 16]
+        if sens_array[count].line_no == 400:
+            sens_array[count].line_1 = app1.finalResultList[count - 16]
+            sens_array[count].line_2 = app2.finalResultList[count - 16]
+            sens_array[count].line_3 = app3.finalResultList[count - 16]
 
-        elif sensArray[count].line_no == 110:
-            sensArray[count].EXT = app4.finalResultList[count]
-            sensArray[count].OUT = app5.finalResultList[count]
-
-    print("------------------")
-    print(sensArray[11].line_1)
-    print("------------------")
-    print(sensArray[11].L2)
-    print("-------------")
-    print(sensArray[11].L3)
-
-    # label1 = Label(root, text=sensArray[11].L1)
-    # label1.pack(ipadx=5, ipady=5)
-    #
-    # label2 = Label(root, text=sensArray[11].L2)
-    # label2.pack(ipadx=10, ipady=10)
-    #
-    # label3 = Label(root, text=sensArray[11].L3)
-    # label3.pack(ipadx=15, ipady=15)
+        elif sens_array[count].line_no == 110:
+            sens_array[count].ext = app4.finalResultList[count]
+            sens_array[count].out = app5.finalResultList[count]
 
     tree = ttk.Treeview(root)
     verscrlbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
@@ -323,49 +294,64 @@ def main():
     tree.tag_configure('low', foreground='black')
 
     for y in range(32):
-        print(sensArray[y].line_no)
+        print(sens_array[y].line_no)
 
-    for l in range(16):
-        if sensArray[l].line_1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
-            tree.insert(parent='', index='end', iid=l, text='', values=(
-                dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                round(sensArray[l].line_1, 4), round(sensArray[l].L2, 4), round(sensArray[l].L3, 4),
-                round(float(sensArray[l].EXT), 4), round(float(sensArray[l].OUT), 4)),
+    for num in range(16):
+        if sens_array[num].line_1 or sens_array[num].line_2 or sens_array[num].line_3 > 30.0:
+            tree.insert(parent='', index='end', iid=str(num), text='', values=(
+                dt.datetime.now().strftime('%Y-%m-%d %X'), sens_array[num].line_no, sens_array[num].sens_no,
+                round(sens_array[num].line_1, 4), round(sens_array[num].line_2, 4), round(sens_array[num].line_3, 4),
+                round(float(sens_array[num].ext), 4), round(float(sens_array[num].out), 4)),
                         tags=('high',))
         else:
-            tree.insert(parent='', index='end', iid=l, text='', values=(
-                dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                round(sensArray[l].line_1, 4), round(sensArray[l].L2, 4), round(sensArray[l].L3, 4),
-                round(float(sensArray[l].EXT), 4), round(float(sensArray[l].OUT), 4)),
+            tree.insert(parent='', index='end', iid=str(num), text='', values=(
+                dt.datetime.now().strftime('%Y-%m-%d %X'), sens_array[num].line_no, sens_array[num].sens_no,
+                round(sens_array[num].line_1, 4), round(sens_array[num].line_2, 4), round(sens_array[num].line_3, 4),
+                round(float(sens_array[num].ext), 4), round(float(sens_array[num].out), 4)),
                         tags=('low',))
-    for l in range(16, 32):
-        if sensArray[l].line_1 or sensArray[l].L2 or sensArray[l].L3 > 30.0:
-            tree.insert(parent='', index='end', iid=l, text='', values=(
-                dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                round(sensArray[l].line_1, 4), round(sensArray[l].L2, 4), round(sensArray[l].L3, 4),
-                round(float(sensArray[l].EXT), 4), round(float(sensArray[l].OUT), 4)),
+    for num in range(16, 32):
+        if sens_array[num].line_1 or sens_array[num].line_2 or sens_array[num].line_3 > 30.0:
+            tree.insert(parent='', index='end', iid=str(num), text='', values=(
+                dt.datetime.now().strftime('%Y-%m-%d %X'), sens_array[num].line_no, (sens_array[num].sens_no - 16),
+                round(sens_array[num].line_1, 4), round(sens_array[num].line_2, 4), round(sens_array[num].line_3, 4),
+                round(float(sens_array[num].ext), 4), round(float(sens_array[num].out), 4)),
                         tags=('high',))
         else:
-            tree.insert(parent='', index='end', iid=l, text='', values=(
-                dt.datetime.now().strftime('%Y-%m-%d %X'), sensArray[l].line_no, sensArray[l].sens_no,
-                round(sensArray[l].line_1, 4), round(sensArray[l].L2, 4), round(sensArray[l].L3, 4),
-                round(float(sensArray[l].EXT), 4), round(float(sensArray[l].OUT), 4)),
+            tree.insert(parent='', index='end', iid=str(num), text='', values=(
+                dt.datetime.now().strftime('%Y-%m-%d %X'), sens_array[num].line_no, (sens_array[num].sens_no - 16),
+                round(sens_array[num].line_1, 4), round(sens_array[num].line_2, 4), round(sens_array[num].line_3, 4),
+                round(float(sens_array[num].ext), 4), round(float(sens_array[num].out), 4)),
                         tags=('low',))
+
+    def get_value_mongo():
+        myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+        mydb = myclient["Modbus_Database"]
+        mycol = mydb["collection6"]
+        mydoc_all = mycol.find()
+        df = pd.DataFrame(list(mydoc_all))
+        return df.to_csv("xyz.csv", sep=",")
+
+    def save_csv():
+        with open("new.csv", "w", newline='') as myfile:
+            csvwriter = csv.writer(myfile, delimiter=',')
+            csvwriter.writerow(["Time", "Port No", "Sensor No", "L1", "L2", "L3", "EXT", "OUT"])
+            for row_id in tree.get_children():
+                row = tree.item(row_id)['values']
+                print('save row:', row)
+                csvwriter.writerow(row)
+
+        df_new = pd.read_csv('new.csv')
+
+        table_datas = pd.ExcelWriter('table_excel_data.xlsx')
+        df_new.to_excel(table_datas, index=False)
+
+        table_datas.save()
+        get_value_mongo()
+
+    button_save = tk.Button(root, text='Save', command=save_csv)
+    button_save.pack()
 
     tree.pack()
-    # app1.table_insert(50, 10)
-    # app2 = ModBus(2, 400, 9, 13)
-    # app2.connect_modbus()
-    # app2.table_insert(50, 250)
-    # app3 = ModBus(3, 400, 9, 13)
-    # app3.connect_modbus()
-    # app3.table_insert(50, 490)
-    # app4 = ModBus(7, 110, 5, 16)
-    # app4.connect_modbus()
-    # app4.table_insert(450, 10)
-    # app5 = ModBus(8, 110, 5, 16)
-    # app5.connect_modbus()
-    # app5.table_insert(450, 250)
     mainloop()
 
 
