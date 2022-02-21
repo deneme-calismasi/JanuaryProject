@@ -46,11 +46,11 @@ class ModBus:
 
         self.sensor_min_num = sensor_min_num
         self.sensor_max_num = sensor_max_num
-        self.lineNo = line_no
-        self.sensorTypeNo = sensor_type_no
-        self.resultList = []
-        self.finalResultList = []
-        self.regNoList = []
+        self.line_no = line_no
+        self.sensor_type_no = sensor_type_no
+        self.result_list = []
+        self.final_result_list = []
+        self.reg_no_list = []
         self.reg_list = list(range(self.sensor_min_num, self.sensor_max_num + 1))
         self.style = ttk.Style()
         self.style.map("Treeview", foreground=self.fixed_map("foreground"), background=self.fixed_map("background"))
@@ -67,15 +67,15 @@ class ModBus:
     def connect_modbus(self):
 
         for inc in self.reg_list:
-            group_no = math.floor(((self.lineNo - 1) / 256)) + 1
-            self.port_no = 10000 + (self.sensorTypeNo - 1) * 10 + group_no - 1
-            reg_no = (((self.lineNo - 1) * 128 + (int(inc) - 1)) * 2) % 65536
-            self.regNoList.append(reg_no)
+            group_no = math.floor(((self.line_no - 1) / 256)) + 1
+            self.port_no = 10000 + (self.sensor_type_no - 1) * 10 + group_no - 1
+            reg_no = (((self.line_no - 1) * 128 + (int(inc) - 1)) * 2) % 65536
+            self.reg_no_list.append(reg_no)
             print("group_no", group_no)
             print("portNo", self.port_no)
             print("reg_no", reg_no)
 
-        for x in self.regNoList:
+        for x in self.reg_no_list:
             sensor_no = ModbusClient(host="192.40.50.107", port=self.port_no, unit_id=1, auto_open=True)
             sensor_no.open()
             regs = sensor_no.read_holding_registers(x, 2)
@@ -87,14 +87,14 @@ class ModBus:
             regs[0], regs[1] = regs[1], regs[0]
             data_bytes = np.array(regs, dtype=np.uint16)
             result = data_bytes.view(dtype=np.float32)
-            self.resultList.append(result[0])
+            self.result_list.append(result[0])
 
         print("REG_LIST", self.reg_list)
-        self.data_as_float = self.resultList
-        print("Result_Temp", self.resultList)
-        self.finalResultList = self.resultList
-        self.regNoList = []
-        self.resultList = []
+        self.data_as_float = self.result_list
+        print("Result_Temp", self.result_list)
+        self.final_result_list = self.result_list
+        self.reg_no_list = []
+        self.result_list = []
         return self.data_as_float
 
     def list_to_dict(self):
@@ -108,7 +108,7 @@ class ModBus:
         products = data
         self.arr = []
         for product in products:
-            vals = {"Sensor Type No": str(int(self.sensorTypeNo)), "Line No": str(int(self.lineNo)),
+            vals = {"Sensor Type No": str(int(self.sensor_type_no)), "Line No": str(int(self.line_no)),
                     "Sensor No": str(int(product[1])), "Temp": str(round(product[2], 4)),
                     "Time": str(dt.datetime.now().strftime('%Y-%m-%d %X'))}
             self.arr.append(vals)
@@ -148,15 +148,15 @@ class ModBus:
 
     def table_insert(self, x, y):
 
-        if self.sensorTypeNo == 1:
+        if self.sensor_type_no == 1:
             self.head_text = "L1"
-        elif self.sensorTypeNo == 2:
+        elif self.sensor_type_no == 2:
             self.head_text = "L2"
-        elif self.sensorTypeNo == 3:
+        elif self.sensor_type_no == 3:
             self.head_text = "L3"
-        elif self.sensorTypeNo == 7:
+        elif self.sensor_type_no == 7:
             self.head_text = "OUT"
-        elif self.sensorTypeNo == 8:
+        elif self.sensor_type_no == 8:
             self.head_text = "EXT"
         else:
             self.head_text = "NULL"
@@ -257,13 +257,13 @@ def main():
 
     for count in range(32):
         if sens_array[count].line_no == 400:
-            sens_array[count].line_1 = app1.finalResultList[count - 16]
-            sens_array[count].line_2 = app2.finalResultList[count - 16]
-            sens_array[count].line_3 = app3.finalResultList[count - 16]
+            sens_array[count].line_1 = app1.final_result_list[count - 16]
+            sens_array[count].line_2 = app2.final_result_list[count - 16]
+            sens_array[count].line_3 = app3.final_result_list[count - 16]
 
         elif sens_array[count].line_no == 110:
-            sens_array[count].ext = app4.finalResultList[count]
-            sens_array[count].out = app5.finalResultList[count]
+            sens_array[count].ext = app4.final_result_list[count]
+            sens_array[count].out = app5.final_result_list[count]
 
     tree = ttk.Treeview(root)
     verscrlbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
